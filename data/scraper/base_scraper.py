@@ -39,7 +39,11 @@ class DocChunk:
     hierarchy: list[str]
     content: str
     doc_secure: str = "unknown"
-    
+
+# ------------------------------
+#       base scraper
+# ------------------------------
+
 class BaseScraper(ABC):
     """
     Abstract base class for all documentation scrapers.
@@ -64,7 +68,7 @@ class BaseScraper(ABC):
             doc_source:  Identifier string, e.g. "fastapi", "pytorch"
         """
         self.output_path = Path(output_path)
-        self.output_path.parent.mkidr(parents=True, exist_ok=True)
+        self.output_path.parent.mkdir(parents=True, exist_ok=True)
         
         self.doc_source = doc_source
         
@@ -145,7 +149,7 @@ class BaseScraper(ABC):
     
     # ------- ABS METHOD ---------
     @abstractmethod
-    def _get_parse_(self, url):
+    def _parse_page(self, url):
         """
         Extract DocChunk from a single documentation page.
 

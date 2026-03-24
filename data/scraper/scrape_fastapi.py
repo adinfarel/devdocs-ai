@@ -1,9 +1,16 @@
 import time
 from typing import Optional
+from pathlib import Path
+import sys
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
-from base_scraper import BaseScraper, DocChunk
+from data.scraper.base_scraper import BaseScraper, DocChunk
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 # ------------------------------
 #       fastapi scraper
@@ -68,20 +75,35 @@ class FastAPIScraper(BaseScraper):
         links           = []
         
         for a_tag in soup.select("nav.md-nav--primary a.md-nav__link"):
-            href        = a_tag.get("href", "")
+            href        = a_tag.get("href", "").strip()
             
-            if not href.startswith("/"):
+            if not href or href.startswith("javascript"):
                 continue
             
-            if '#'in href:
+            if href.startswith("#"):
                 continue
             
-            full_url    = self.BASE_URL + href
+            if href.startswith("http"):
+                continue
+            elif href.startswith("/"):
+                full_url = self.BASE_URL + href
+            else:
+                full_url = urljoin(section_url, href)
+            
+            full_url    = full_url.split("#")[0]
+            
+            if not full_url.startswith(self.BASE_URL):
+                continue
+            
+            url_path    = full_url.replace(self.BASE_URL, "")
+            if not url_path.startswith(section_path):
+                continue
             
             if full_url in self.visited:
                 continue
             
-            links.append(full_url)
+            if full_url not in links:
+                links.append(full_url)
         
         self.logger.info(
             f"Found {len(links)} links in section {section_path}"
@@ -134,11 +156,13 @@ class FastAPIScraper(BaseScraper):
             return None
         
         
-        article     = soup.select("article.md-content__inner")
+        article     = soup.select_one("article.md-content__inner")
         if article is None:
             self.logger.debug(f"No article content found at {url} - Skipping")
             return None
         
+        for noise in article.select(".headerlink"):
+            noise.decompose()
         
         h1          = article.select_one("h1")
         if h1:
@@ -155,8 +179,6 @@ class FastAPIScraper(BaseScraper):
         for noise in article.select(".md-code__nav"):
             noise.decompose()
         
-        for noise in article.select(".headerlink"):
-            noise.decompose()
         
         content     = article.get_text(separator="\n", strip=True)
         

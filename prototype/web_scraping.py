@@ -5,7 +5,7 @@ with open("index.html", "r") as html:
     doc = BeautifulSoup(html, "html.parser")
 
 # Select
-sel = doc.select("h2", class_=)
+sel = doc.select("h2")
 print(sel)
 
 # -------------------
