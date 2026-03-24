@@ -3,7 +3,7 @@ import sys
 from typing import Optional
 from pathlib import Path
 from urllib.parse import urljoin
-
+from tqdm import tqdm
 from bs4 import BeautifulSoup
 from data.scraper.base_scraper import BaseScraper, DocChunk
 
@@ -25,11 +25,12 @@ class PyTorchScraper(BaseScraper):
     Inherit BaseScraper for HTTP sessions, error handling,
     rate limiting, and JSON persistence.
     """
-    BASE_URL    = "https://pytorch.org/docs/stable"
+    BASE_URL    = "https://docs.pytorch.org/docs/stable"
     
     SECTIONS    = [
         '/'
     ]
+    MAX_PAGES   = 300
     
     MIN_CONTENT_LENGTH = 200
     REQ_DELAY   = 1
@@ -56,61 +57,44 @@ class PyTorchScraper(BaseScraper):
         List of full URLs that have not been visited.
         """
         section_url         = self.BASE_URL + section_path
-        soup                = self._get_soup(section_url)
-        
-        if soup is None:
-            self.logger.warning(
-                f"Couldn't fetch section {section_url} - Skipping"
-            )
-            return []
-        
-        links               = []
-        
-        for a_tag in soup.select("article.bd-article a.reference.internal"):
-            href    = a_tag.get("href", "").strip()
+        to_visit = [section_url]
+        links = []
+        visited_local = set()
+        while to_visit:
+            if len(visited_local) >= self.MAX_PAGES:
+                self.logger.info(f"Get links have been maximum pages can we get {self.MAX_PAGES}")
+                break
             
-            if not href or href.startswith(('librosa', 'tensorflow', 'javascript')):
+            url = to_visit.pop()
+
+            if url in visited_local:
                 continue
+
+            visited_local.add(url)
+
+            soup = self._get_soup(url)
             
-            if href.startswith('#'):
+            if soup is None:
                 continue
-            
-            full_url = urljoin(section_url, href)
-            
-            full_url        = full_url.split('#')[0]
-            
-            if not full_url.startswith(self.BASE_URL):
-                continue
-            
-            if full_url in self.visited:
-                continue
-            
-            if full_url not in links:
-                links.append(full_url)
-            
-            soup_inner      = self._get_soup(full_url)
-            
-            for a_tag_inner in soup_inner.select('nav.bd-docs-nav a.reference.internal'):
-                href_inner  = a_tag_inner.get("href", "").strip()
-                
-                if not href_inner or href_inner.startswith(('librosa', 'tensorflow', 'javascript')):
+
+            for a in tqdm(soup.select("article.bd-article a.reference.internal"), desc=f"Fetch link {len(visited_local)} at {url}"):
+                href = a.get("href", "").strip()
+
+                if not href:
                     continue
-                
-                if href_inner.startswith('#'):
+
+                if href.startswith("#"):
                     continue
-                
-                full_url_inner = urljoin(section_url, href_inner)
-                
-                full_url_inner       = full_url_inner.split('#')[0]
-                
-                if not full_url_inner.startswith(self.BASE_URL):
+
+                full = urljoin(url, href)
+                full = full.split("#")[0]
+
+                if not full.startswith(self.BASE_URL):
                     continue
-                
-                if full_url_inner in self.visited:
-                    continue
-                
-                if full_url_inner not in links:
-                    links.append(full_url_inner)
+
+                if full not in visited_local:
+                    to_visit.append(full)
+                    links.append(full)
         
         self.logger.info(
             f"Founds {len(links)} links in section {section_path}"
@@ -208,6 +192,14 @@ class PyTorchScraper(BaseScraper):
             links   = self._extract_links_from_section(section)
             
             for url in links:
+                if len(self.visited) >= self.MAX_PAGES:
+                    self.logger.info(
+                        f"Fetch links has been maximal, Total max {self.MAX_PAGES} link that get {len(self.chunks)}"
+                    )
+                    break
+                
+                if "generated/" not in url:
+                    continue
                 
                 if url in self.visited:
                     continue

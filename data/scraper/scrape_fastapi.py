@@ -3,6 +3,7 @@ from typing import Optional
 from pathlib import Path
 import sys
 from urllib.parse import urljoin
+from tqdm import tqdm
 
 from bs4 import BeautifulSoup
 
@@ -74,7 +75,7 @@ class FastAPIScraper(BaseScraper):
         
         links           = []
         
-        for a_tag in soup.select("nav.md-nav--primary a.md-nav__link"):
+        for a_tag in tqdm(soup.select("nav.md-nav--primary a.md-nav__link"), desc=f"Fetching link at {section_url}"):
             href        = a_tag.get("href", "").strip()
             
             if not href or href.startswith("javascript"):
