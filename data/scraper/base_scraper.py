@@ -38,7 +38,7 @@ class DocChunk:
     section_title: str
     hierarchy: list[str]
     content: str
-    doc_secure: str = "unknown"
+    doc_source: str = "unknown"
 
 # ------------------------------
 #       base scraper

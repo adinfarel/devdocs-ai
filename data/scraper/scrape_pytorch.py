@@ -1,102 +1,85 @@
 import time
+import sys
 from typing import Optional
 from pathlib import Path
-import sys
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-
 from data.scraper.base_scraper import BaseScraper, DocChunk
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# ------------------------------
-#       fastapi scraper
-# ------------------------------
-class FastAPIScraper(BaseScraper):
+# -----------------------------
+#       pytorch scraper
+# -----------------------------
+class PyTorchScraper(BaseScraper):
     """
-    Scraper for FastAPI documentation.
-
-    Crawls all pages from three main sections:
-    - Tutorial (fastapi.tiangolo.com/tutorial/)
-    - Advanced User Guide (fastapi.tiangolo.com/advanced/)
-    - Reference (fastapi.tiangolo.com/reference/)
-
+    Scraper for PyTorch documentation.
+    
+    Crawls all pages from two main sections:
+    - Tutorial (pytorch.org/tutorial/)
+    - Docs (pytorch.org/docs/stable/)
+    
     Inherit BaseScraper for HTTP sessions, error handling,
     rate limiting, and JSON persistence.
     """
+    BASE_URL    = "https://pytorch.org/docs/stable"
     
-    BASE_URL = "https://fastapi.tiangolo.com"
-    
-    SECTIONS = [
-        "/tutorial/",
-        "/advanced/",
-        "/reference/",
+    SECTIONS    = [
+        '/'
     ]
     
     MIN_CONTENT_LENGTH = 200
-    REQ_DELAY = 0.5
+    REQ_DELAY   = 1
     
-    def __init__(self) -> None:
+    def __init__(self, output_path: str = f"data/chunks/pytorch_chunks.json", doc_source: str = "pytorch"):
         """
-        Initialize FastAPIScraper with the specified output path and doc_source
-        — the user does not need to specify it manually.
+        Initialize PyTorchScraper with the specified output path and doc_source
+        — the user does not need to specify it manually (Optional).
         """
         super().__init__(
-            output_path=r'data/chunks/fastapi_chunks.json',
-            doc_source='fastapi'
+            output_path=output_path,
+            doc_source=doc_source
         )
     
-    # ---------- LINK CONNECTION -------------
+    # ------- LINK CONNECTIONS ---------
     def _extract_links_from_section(self, section_path: str) -> list[str]:
         """
-        Get all page links from a single FastAPI docs section.
-
-        FastAPI docs use MkDocs Material — all navigation links
-        are in the sidebar with the selector nav.md-nav--primary a.md-nav__link.
-
+        Get all page links from a single PyTorch docs section.
+        
         Args:
         section_path: The section path, e.g., "/tutorial/"
 
         Returns:
         List of full URLs that have not been visited.
         """
-        section_url     = self.BASE_URL + section_path
-        soup            = self._get_soup(section_url)
+        section_url         = self.BASE_URL + section_path
+        soup                = self._get_soup(section_url)
         
         if soup is None:
             self.logger.warning(
-                f"Could not fetch section {section_url} - Skipping"
+                f"Couldn't fetch section {section_url} - Skipping"
             )
             return []
         
-        links           = []
+        links               = []
         
-        for a_tag in soup.select("nav.md-nav--primary a.md-nav__link"):
-            href        = a_tag.get("href", "").strip()
+        for a_tag in soup.select("article.bd-article a.reference.internal"):
+            href    = a_tag.get("href", "").strip()
             
-            if not href or href.startswith("javascript"):
+            if not href or href.startswith(('librosa', 'tensorflow', 'javascript')):
                 continue
             
-            if href.startswith("#"):
+            if href.startswith('#'):
                 continue
             
-            if href.startswith("http"):
-                continue
-            elif href.startswith("/"):
-                full_url = self.BASE_URL + href
-            else:
-                full_url = urljoin(section_url, href)
+            full_url = urljoin(section_url, href)
             
-            full_url    = full_url.split("#")[0]
+            full_url        = full_url.split('#')[0]
             
             if not full_url.startswith(self.BASE_URL):
-                continue
-            
-            url_path    = full_url.replace(self.BASE_URL, "")
-            if not url_path.startswith(section_path):
                 continue
             
             if full_url in self.visited:
@@ -104,42 +87,51 @@ class FastAPIScraper(BaseScraper):
             
             if full_url not in links:
                 links.append(full_url)
+            
+            soup_inner      = self._get_soup(full_url)
+            
+            for a_tag_inner in soup_inner.select('nav.bd-docs-nav a.reference.internal'):
+                href_inner  = a_tag_inner.get("href", "").strip()
+                
+                if not href_inner or href_inner.startswith(('librosa', 'tensorflow', 'javascript')):
+                    continue
+                
+                if href_inner.startswith('#'):
+                    continue
+                
+                full_url_inner = urljoin(section_url, href_inner)
+                
+                full_url_inner       = full_url_inner.split('#')[0]
+                
+                if not full_url_inner.startswith(self.BASE_URL):
+                    continue
+                
+                if full_url_inner in self.visited:
+                    continue
+                
+                if full_url_inner not in links:
+                    links.append(full_url_inner)
         
         self.logger.info(
-            f"Found {len(links)} links in section {section_path}"
+            f"Founds {len(links)} links in section {section_path}"
         )
         return links
-    
-    # ------- HIERARCHY -------------
+
+    # ------- HIERARCHY ----------
     def _extract_hierarchy(self, soup: BeautifulSoup) -> list[str]:
-        """
-        Extract the breadcrumb hierarchy from the page.
-
-        From inspect HTML, we know the breadcrumbs are at:
-        nav.md-path ol.md-path__list li
-
-        Example output: ["Learn", "Tutorial - User Guide"]
-
-        Args:
-        soup: BeautifulSoup object for the fetched page.
-
-        Returns:
-        List of breadcrumb strings. Empty list if not found.
-        """
-        breadcrumb_items    = soup.select("nav.md-path ol.md-path__list li")
-        
-        hierarchy           = [
+        breadcrumbs     = soup.select("nav.bd-breadcrumbs li.breadcrumb-item a")
+        hierarchy       = [
             item.get_text(strip=True)
-            for item in breadcrumb_items
+            for item in breadcrumbs
             if item.get_text(strip=True)
         ]
         
-        return hierarchy
-
-    # ------- PAGE PARSING -------------
-    def _parse_page(self, url: str) -> Optional[DocChunk]:
+        return hierarchy if hierarchy else ["PyTorch", "Docs"]
+    
+    # ------- PAGE PARSING ------
+    def _parse_page(self, url: str) -> list[DocChunk]:
         """
-        Extracts DocChunk from a single FastAPI docs page.
+        Extracts DocChunk from a single PyTorch docs page.
 
         Implementation of the abstract method BaseScraper._parse_page().
         Logic specific to the HTML structure of FastAPI docs (MkDocs Material).
@@ -155,30 +147,30 @@ class FastAPIScraper(BaseScraper):
         if soup is None:
             return None
         
-        
-        article     = soup.select_one("article.md-content__inner")
+        article     = soup.select_one("article.bd-article")
         if article is None:
-            self.logger.debug(f"No article content found at {url} - Skipping")
+            self.logger.debug(
+                f"No article content found at {url} - Skipping"
+            )
             return None
         
         for noise in article.select(".headerlink"):
             noise.decompose()
+
+        for noise in article.select(".admonition-title"):
+            noise.decompose()
+
+        for noise in article.select(".copybutton"):
+            noise.decompose()
         
-        h1          = article.select_one("h1")
+        h1 = article.select_one("h1")
         if h1:
             title   = h1.get_text(strip=True)
         else:
-            title   = url.rstrip("/").split("/")[-1]
-            self.logger.debug(f"No h1 found at {url}, using URL segment: {title}")
-        
+            title   = url.rstrip("/").split("/")[-1].replace(".html", "")
+            self.logger.debug(f"No h1 at {url}, using URL segment: {title}")
+
         hierarchy   = self._extract_hierarchy(soup)
-        
-        for noise in article.select(".admonition-title"):
-            noise.decompose()
-        
-        for noise in article.select(".md-code__nav"):
-            noise.decompose()
-        
         
         content     = article.get_text(separator="\n", strip=True)
         
@@ -196,7 +188,7 @@ class FastAPIScraper(BaseScraper):
             doc_source=self.doc_source
         )
     
-    # ------ MAIN ENTRY POINT ----------
+    # ------ MAIN ENTRY POINT ---------
     def run(self) -> None:
         """
         Entry point scraping — crawl all sections of the FastAPI docs.
@@ -207,7 +199,7 @@ class FastAPIScraper(BaseScraper):
         3. Sleep between requests (rate limiting).
         4. Once complete, save to JSON.
         """
-        self.logger.info("Starting FastAPI docs scraper...")
+        self.logger.info("Starting PyTorch docs scraper...")
         self.logger.info(f"Sections: {self.SECTIONS}")
         
         for section in self.SECTIONS:
@@ -241,8 +233,7 @@ class FastAPIScraper(BaseScraper):
         
         self._save()
 
-
 # ------ ENTRY POINT --------
 if __name__ == "__main__":
-    scraper = FastAPIScraper()
+    scraper = PyTorchScraper()
     scraper.run()
