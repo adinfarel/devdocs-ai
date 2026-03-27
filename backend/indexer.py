@@ -1,182 +1,161 @@
-import json
 import logging
-from dataclasses import dataclass, asdict
-from pathlib import Path
+import sys
+import json
 from typing import Optional
+from pathlib import Path
 
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+ROOT    = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-@dataclass
-class TextChunk:
+from backend.retrieval.embedder import Embedder
+from backend.retrieval.vector_store import VectorStore 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s"
+)
+
+
+    
+class Indexer:
     """
-    Represents a single chunk of text ready for embedding and indexing.
-
-    Attributes:
-        chunk_id: Unique identifier, format: "{doc_source}_{page_idx}_{chunk_idx}"
-        source_url: URL of the source page — for later SourceCard.tsx
-        section_title: H1 title of the source page
-        hierarchy: Breadcrumb of the source page
-        content: Text of this chunk — which will be embedded
-        doc_source: "fastapi" or "pytorch"
-        chunk_index: Position of this chunk within the page (0, 1, 2, ...)
-        total_chunks: Total chunks from the same page
+    Wrapper all piece, Embedder for Vector Represtation and VectorStore for Vector Databases
+    
+    Putting all the pieces together starting from:
+    - Load chunked docs from data/chunks, e.g. data/chunks/fastapi_chunked.json
+    - Embedding all content from chunked docs
+    - Store metadata and vector into Qdrant with wrapper VectorStore
     """
-    chunk_id: str
-    source_url: str
-    section_title: str
-    hierarchy: list[str]
-    content: str
-    doc_source: str
-    chunk_index: int
-    total_chunks: int
-
-class Chunker:
-    """
-    Splits raw DocChunk content into smaller TextChunks
-    ready for embedding and vector store indexing.
-
-    Reads from scraped JSON files produced by FastAPIScraper
-    and PyTorchScraper, writes chunked JSON to output path.
-
-    Usage:
-        chunker = Chunker()
-        chunker.process("data/chunks/fastapi_chunks.json",
-                        "data/chunks/fastapi_chunked.json")
-    """
-    def __init__(
-        self,
-        chunk_size: int = 512,
-        chunk_overlap: int = 50,
-    ) -> None:
+    def __init__(self):
         """
-        Args:
-        chunk_size: Target size of each chunk in characters.
-        chunk_overlap: Number of overlapping characters between chunks.
+        Initialized Embedder and VectorStore
         """
         self.logger         = logging.getLogger(self.__class__.__name__)
-        self.splitter       = RecursiveCharacterTextSplitter(
-            chunk_size=chunk_size,
-            chunk_overlap=chunk_overlap,
-            separators=["\n\n", "\n", ". ", " ", ""]
-        )
-        
+        self.embedder       = Embedder()
+        self.vector_store   = VectorStore()
         self.logger.info(
-            f"Chunker initialized - size={chunk_size}, overlap={chunk_overlap}"
+            f"Initialized Embedder and VectorStore"
         )
     
-    def _split_doc(
+    def _extract_all_contents(
         self,
-        doc: dict,
-        page_idx: int,
-    ) -> list[TextChunk]:
+        chunks_docs: list[dict]
+    ) -> list[str]:
         """
-        Split a raw DocChunk dict into a list of TextChunks.
-
-        Args:
-        doc: Dict from JSON scraper — one docs page.
-        page_idx: Index of this page in the JSON file (for chunk_id).
-
-        Returns:
-        List of TextChunks. Empty list if content is empty.
-        """
-        content     = doc.get("content", "").strip()
+        Extract all contents from list of dict documentation
         
-        if not content:
-            self.logger.debug(
-                f"Empty content for {doc.get("source_url", "unknown")} - Skipping"
+        Args:
+          - chunks_docs: all docs chunked
+        
+        Returns:
+          - given list of strings for embedding in the next section
+        """
+        if not chunks_docs:
+            self.logger.warning(
+                f"Chunked docs empty, please check it again"
             )
             return []
         
-        splits      = self.splitter.split_text(content)
+        all_content     = [
+            c['content'] for c in chunks_docs
+        ]
         
-        total       = len(splits)
-        chunks      = []
-        
-        for chunk_idx, split_text in enumerate(splits):
-            chunk   = TextChunk(
-                chunk_id=f"{doc['doc_source']}_{page_idx}_{chunk_idx}",
-                source_url=doc["source_url"],
-                section_title=doc['section_title'],
-                hierarchy=doc.get('hierarchy', []),
-                content=split_text,
-                doc_source=doc['doc_source'],
-                chunk_index=chunk_idx,
-                total_chunks=total
-            )
-            
-            chunks.append(chunk)
-        
-        return chunks
+        return all_content
     
-    def process(
-        self,
-        input_path: str,
-        output_path: str,
-    ) -> None:
+    def index_file(self, chunked_path: str) -> None:
         """
-        Read raw JSON chunks, split all, write results to JSON output.
+        Load a chunked JSON file, embed its original content, and send it to the server.
 
         Args:
-            input_path: Path to the JSON file of the scraper,
-                         e.g. "data/chunks/fastapi_chunks.json"
-            output_path: JSON chunked output path,
-                         e.g. "data/chunks/fastapi_chunked.json"
+            chunked_path: The path to the chunked JSON, 
+                        e.g. "data/chunks/fastapi_chunked.json
         """
-        input_path      = Path(input_path)
-        output_path     = Path(output_path)
-        
-        if not input_path.exists():
-            self.logger.error(
-                f"Input file not found: {input_path}"
-            )
+        path    = Path(chunked_path)
+        if not path.exists():
+            self.logger.error(f"File not found: {path}")
             return
         
-        self.logger.info(f"Reading from {input_path}...")
+        self.logger.info(f"Loading {path}...")
         
-        with open(input_path, 'r', encoding="utf-8") as f:
-            raw_docs    = json.load(f)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                chunks  = json.load(f)
+        except json.JSONDecodeError as e:
+            self.logger.error(f"No chunks found in {path} - skipping")
+            return
         
-        self.logger.info(f"Loaded {len(raw_docs)} raw docs")
+        self.logger.info(f"Loaded {len(chunks)} chunks from {path.name}")
         
-        all_chunks: list[TextChunk] = []
+        contents    = self._extract_all_contents(chunks)
         
-        for page_idx, doc in enumerate(raw_docs):
-            chunks      = self._split_doc(doc=doc, page_idx=page_idx)
-            all_chunks.extend(chunks)
-            
-            if (page_idx + 1) % 20 == 0:
-                self.logger.info(
-                    f"Processed {page_idx + 1}/{len(raw_docs)} docs"
-                    f"- {len(all_chunks)} chunks so far"
-                )
-            
+        if not contents:
+            self.logger.warning(f"No content to embed - skipping")
+            return
+        
+        self.logger.info(f"Embedding {len(contents)} chunks...")
+        vectors     = self.embedder.embed_chunks(contents, show_progress_bar=True)
+        
+        # Push to Qdrant
+        self.vector_store.index_chunks(chunks=chunks, vectors=vectors)
+        
         self.logger.info(
-            f"Chunking complete - {len(raw_docs)} docs -> {len(all_chunks)} chunks"
+            f"Done indexing {path.name}"
+            f"{len(chunks)} chunks in Qdrant"
+        )
+    
+    def run(
+        self,
+        recreate_collection: bool = False,
+    ) -> None:
+        """
+        Index all chunked documents into Qdrant.
+
+        Sequence:
+        1. Create collection (skip if it already exists, unless recreate=True)
+        2. Index fastapi_chunked.json
+        3. Index pytorch_chunked.json
+
+        Args:
+            recreate_collection: If True, delete the old collection
+                                 and create a new one from scratch.
+                                 Use this if you're rescraping from scratch.
+        """
+        self.logger.info(f"Starting indexer...")
+        
+        # Build collection Qdrant
+        self.vector_store.create_collection(
+            embedding_dim=Embedder.EMBEDDING_DIM,
+            recreate=recreate_collection,
         )
         
-        output_path.mkdir(parents=True, exist_ok=True)
+        chunked_files   = [
+            "data/chunks/fastapi_chunked.json",
+            "data/chunks/pytorch_chunked.json",
+        ]
         
-        data    = [asdict(chunk) for chunk in all_chunks]
+        for file_path in chunked_files:
+            self.index_file(file_path)
         
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(
-                data,
-                f,
-                indent=2,
-                ensure_ascii=False
-            )
         
-        self.logger.info(f"Saved -> {output_path}")
+        total   = self.vector_store.count()
+        self.logger.info(
+            f"Indexing complete - {total} total points in Qdrant"
+        )
 
 if __name__ == "__main__":
-    chunker = Chunker(chunk_size=512, chunk_overlap=50)
-
-    chunker.process(
-        input_path="data/chunks/fastapi_chunks.json",
-        output_path="data/chunks/fastapi_chunked.json",
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="Index chunked docs to Qdrant",
     )
-
-    chunker.process(
-        input_path="data/chunks/pytorch_chunks.json",
-        output_path="data/chunks/pytorch_chunked.json",
+    parser.add_argument(
+        "--recreate",
+        action="store_true",
+        help="Recreate Qdrant collection from scratch",
     )
+    
+    args    = parser.parse_args()
+    
+    indexer = Indexer()
+    indexer.run(recreate_collection=args.recreate)
