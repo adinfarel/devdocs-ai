@@ -5,3 +5,4 @@ langchain
 langchain-text-splitters
 sentence-transformers
 qdrant-client
+rank-bm25

@@ -180,6 +180,7 @@ class VectorStore:
                 ]
             )
         
+        # Dense search (Based on semantic (context on doc similiarity with query retrieval))
         results = self.client.query_points(
             collection_name=self.COLLECTION_NAME,
             query=query_vector.tolist(),

@@ -6,3 +6,7 @@ node_modules/
 .next/
 *.egg-info/
 .dvc/tmp
+
+
+# IGNORE PICKLE FILE
+data/*.pkl
