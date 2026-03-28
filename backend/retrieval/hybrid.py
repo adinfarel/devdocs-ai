@@ -163,7 +163,7 @@ class HybridRetriever:
             f"Sparse: {len(sparse_results)} results"
         )
         
-        fused = self._rrf_fusion(dense_results, sparse_results)
+        fused = self._rrf(dense_results, sparse_results)
         
         final = fused[:top_k]
         
