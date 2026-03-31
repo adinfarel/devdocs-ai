@@ -37,7 +37,7 @@ class RAGGraph:
     Usage:
         graph = RAGGraph()
         result = graph.run("how to use dependency injection in FastAPI")
-    """
+    """ 
     def __init__(self):
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.info("Building RAG pipeline graph...")
@@ -57,18 +57,18 @@ class RAGGraph:
         builder = StateGraph(RAGState)
         
         # --- ADD NODES ---
-        builder.add_node("embed_query",   self.nodes.embed_query)
-        builder.add_node("hybrid_search", self.nodes.hybrid_search)
-        builder.add_node("rerank",        self.nodes.rerank)
-        builder.add_node("generate",      self.nodes.generate)
-        builder.add_node("fallback",      self.nodes.fallback)
-        builder.add_node("format_output", self.nodes.format_output)
+        builder.add_node("decompose_query",   self.nodes.decompose_query)
+        builder.add_node("multi_hop_search",     self.nodes.multi_hop_search)
+        builder.add_node("rerank",            self.nodes.rerank)
+        builder.add_node("generate",          self.nodes.generate)
+        builder.add_node("fallback",          self.nodes.fallback)
+        builder.add_node("format_output",     self.nodes.format_output)
         
         # --- ADD EDGES ---
-        builder.set_entry_point("embed_query")
+        builder.set_entry_point("decompose_query")
         
-        builder.add_edge("embed_query",   "hybrid_search")
-        builder.add_edge("hybrid_search", "rerank")
+        builder.add_edge("decompose_query",   "multi_hop_search")
+        builder.add_edge("multi_hop_search", "rerank")
         
         builder.add_conditional_edges(
             "rerank",
@@ -101,7 +101,10 @@ class RAGGraph:
         self.logger.info(f"Running pipeline for: '{query[:80]}")
         
         initial_state: RAGState = {
-           "query":              query,
+            "query":              query,
+            "is_multi_hop":       False,
+            "sub_queries":        [],
+            "sub_results":        [],
             "candidates":         [],
             "reranked":           [],
             "confidence":         0.0,

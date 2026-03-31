@@ -1,5 +1,6 @@
 import logging
 import sys
+import json
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(name)s | %(levelname)s | %(message)s"
@@ -67,7 +68,115 @@ class RAGNodes:
         self.generator    = LLMGenerator()
         
         self.logger.info("RAGNodes initialized successfully.")
-    
+        
+    def decompose_query(self, state: RAGState) -> dict:
+        """
+        Node 1 (new): Decompose the query into sub-queries using LLM.
+
+        Always executed — if the query is simple, LLM returns a list
+        with one item (the original query). There is no separate classify step
+        because false negatives are more dangerous than
+        one extra LLM call.
+
+        Updates state:
+            - sub_queries: list of sub-query strings
+            - is_multi_hop: True if LLM returns more than one sub-query
+            - error: set if decomposition fails completely
+        """
+        if state.get("error"):
+            return {}
+        
+        query = state['query']
+        
+        self.logger.info(f"[decompose_query] Decomposing query: {query[:80]}")
+        
+        decompose_prompt = f"""You are a query decomposition system for a technical documentation search engine.
+
+            Your task: decompose the user query into specific sub-queries for document retrieval.
+
+            Rules:
+            1. Return ONLY a JSON array of strings — no explanation, no markdown, no preamble
+            2. If the query is simple and focused on one concept, return a list with ONE item (the original query, slightly refined for search)
+            3. If the query spans multiple distinct concepts, decompose into 2-3 sub-queries
+            4. Each sub-query must be self-contained and searchable on its own
+            5. Each sub-query must preserve the technical context (e.g. "in FastAPI", "in PyTorch")
+
+            Examples:
+            Query: "how to use dependency injection in FastAPI"
+            Output: ["dependency injection Depends() FastAPI"]
+
+            Query: "how to validate request body fields and exclude null fields from response in FastAPI"
+            Output: ["validate request body fields Field() FastAPI", "exclude null fields response_model_exclude_none FastAPI"]
+
+            Query: "how to freeze layers and use custom optimizer in PyTorch"
+            Output: ["freeze layers requires_grad False PyTorch", "custom optimizer parameter groups PyTorch"]
+
+            Now decompose this query:
+            "{query}"
+
+            Output (JSON array only):
+        """
+        try:
+            raw = self.generator.generate_raw(
+                prompt=decompose_prompt,
+            )
+            
+            self.logger.debug(f"[decompose_query] Raw LLM output: {raw[:200]}")
+            
+            cleaned = raw.strip()
+            
+            if cleaned.startswith("```"):
+                lines = cleaned.split("\n")
+                
+                cleaned = "\n".join(lines[1:-1]).strip()
+            
+            sub_queries = json.loads(cleaned)
+            
+            if not isinstance(sub_queries, list):
+                raise ValueError(f"Expected list, got {type(sub_queries)}")
+            
+            if not all(isinstance(q, str) for q in sub_queries):
+                raise ValueError(f"All sub-queries must be strings")
+            
+            sub_queries = [q.strip() for q in sub_queries if q.strip()]
+            
+            if not sub_queries:
+                self.logger.warning(
+                    "[decompose_query] LLM returned empty list - "
+                    "falling back to original query"
+                )
+                sub_queries = [query]
+            
+            is_multi_hop = len(sub_queries) > 1
+            
+            self.logger.info(
+                f"[decompose_query] {"Multi-hop" if is_multi_hop else "Single-hop"}"
+                f" - {len(sub_queries)} sub-queries: {sub_queries}"
+            )
+            
+            return {
+                "sub_queries": sub_queries,
+                "is_multi_hop": is_multi_hop,
+            }
+        
+        except json.JSONDecodeError as e:
+            self.logger.warning(
+                f"[decompose_query] JSON parse failed: {e} — "
+                f"falling back to original query"
+            )
+
+            return {
+                "sub_queries": [query],
+                "is_multi_hop": False,
+            }
+        
+        except Exception as e:
+            self.logger.error(f"[decompose_query] Unexpected error: {e}")
+            return {
+                "sub_queries": [query],
+                "is_multi_hop": False,
+            }
+                
     def embed_query(self, state: RAGState) -> dict:
         """
         Node 1: Validate and log incoming queries.
@@ -96,6 +205,112 @@ class RAGNodes:
             }
         
         return {"error": None}
+    
+    def multi_hop_search(
+        self,
+        state: RAGState
+    ) -> dict:
+        """
+        Node 2 (new): Retrieve per sub-query and merge the results.
+
+        Replaces the hybrid_search node for multi-hop queries.
+        For single-hop queries (sub_queries with one item), the behavior is identical to the old hybrid_search node.
+
+        Retrieval of each sub-query is executed sequentially
+        (not truly parallel) due to Python's GIL limitations
+        and Qdrant's free-tier rate limit. For production scale,
+        can be upgraded to asyncio.gather().
+
+        Updates state:
+        - sub_results: list of retrieval results per sub-query
+        - candidates: merged + deduplicated from all sub_results
+        - error: set if all sub-query retrievals fail
+        """
+        if state.get("error"):
+            return {}
+        
+        sub_queries = state.get("sub_queries", [])
+        
+        if not sub_queries:
+            self.logger.warning(
+                f"[multi_hop_search] No sub-queries found - "
+                "falling back to original query"
+            )
+            sub_queries = [state["query"]]
+        
+        self.logger.info(
+            f"[multi_hop_search] Retrieving for "
+            f"{len(sub_queries)} sub-queries..."
+        )
+        
+        sub_results = []
+        successful = 0
+        
+        for i, sub_query in enumerate(sub_queries):
+            self.logger.info(
+                f"[multi_hop_search] Sub-query {i+1}/{len(sub_queries)}"
+                f"'{sub_query[:80]}'"
+            )
+            
+            try:
+                results = self.retriever.search(sub_query, top_k=20)
+                sub_results.append(results)
+                successful += 1
+                
+                self.logger.info(
+                    f"[multi_hop_query] Sub-query {i+1}"
+                    f"{len(results)} results"
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"[multi_hop_search] Sub-query {i+1} failed: {e} - "
+                    f"appending empty results"
+                )
+                sub_results.append([])
+            
+        if successful == 0:
+            self.logger.error(
+                "[multi_hop_search] All sub-queries failed"
+            )
+            return {
+                "sub_results": sub_results,
+                "candidates": [],
+                "error": "All retrieval attempts failed"
+            }
+        
+        seen_chunk_ids: set[str] = set()
+        merged: list[dict] = []
+        
+        for i, results in enumerate(sub_results):
+            for chunk in results:
+                chunk_id = chunk.get("chunk_id", "")
+                
+                if chunk_id in seen_chunk_ids:
+                    self.logger.debug(
+                        f"[multi_hop_search] Duplicate chunk skipped: "
+                        f"{chunk_id}"
+                    )
+                    continue
+            
+                seen_chunk_ids.add(chunk_id)
+                
+                chunk_with_source = {
+                    **chunk,
+                    "from_sub_query": i,
+                    "sub_query_text": sub_queries[i],
+                }
+                
+                merged.append(chunk_with_source)
+        
+        self.logger.info(
+            f"[multi_hop_search] Merged: {sum(len(r) for r in sub_results)}"
+            f"total -> {len(merged)} unique candidates after dedup"
+        )
+        
+        return {
+            "sub_results": sub_results,
+            "candidates":  merged,
+        }
     
     def hybrid_search(self, state: RAGState) -> dict:
         """
