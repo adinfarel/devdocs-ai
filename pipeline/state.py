@@ -19,6 +19,10 @@ class RAGState(TypedDict):
     """
     # --- INPUT ---
     query: str
+    # --- MULTI-HOP ---
+    is_multi_hop: bool
+    sub_queries: Optional[list[str]]
+    sub_results: Optional[list[list[dict]]]
     # --- RETRIEVAL ---
     candidates: list[dict] # Output hybrid search
     reranked: list[dict] # Output cross-encoder
