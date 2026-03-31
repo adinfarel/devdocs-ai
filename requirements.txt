@@ -6,3 +6,9 @@ langchain-text-splitters
 sentence-transformers
 qdrant-client
 rank-bm25
+groq
+python-dotenv
+fastapi
+uvicorn
+python-multipart
+pydantic
