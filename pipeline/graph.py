@@ -124,36 +124,81 @@ class RAGGraph:
         
         return final_state
 
+# if __name__ == "__main__":
+#     from dotenv import load_dotenv
+#     load_dotenv()
+
+#     graph = RAGGraph()
+
+#     # test normal query
+#     print("\n" + "="*60)
+#     print("TEST 1 — Normal query")
+#     print("="*60)
+#     result = graph.run("How do I declare a request body in FastAPI?")
+#     print(f"Answer:\n{result['answer']}")
+#     print(f"\nSources:")
+#     for s in result["sources"]:
+#         print(f"  - {s['title']} ({s['url']})")
+#     print(f"\nFallback triggered: {result['fallback_triggered']}")
+#     print(f"Error: {result['error']}")
+
+#     # test low relevance query
+#     print("\n" + "="*60)
+#     print("TEST 2 — Off-topic query (expect fallback)")
+#     print("="*60)
+#     result2 = graph.run("How do I configure nginx reverse proxy?")
+#     print(f"Answer:\n{result2['answer'][:300]}")
+#     print(f"\nFallback triggered: {result2['fallback_triggered']}")
+
+#     # test empty query
+#     print("\n" + "="*60)
+#     print("TEST 3 — Empty query (expect early error)")
+#     print("="*60)
+#     result3 = graph.run("")
+#     print(f"Answer: {result3['answer']}")
+#     print(f"Error: {result3['error']}")
+
 if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
 
     graph = RAGGraph()
 
-    # test normal query
+    # test 1 — single hop
     print("\n" + "="*60)
-    print("TEST 1 — Normal query")
+    print("TEST 1 — Single-hop query")
     print("="*60)
     result = graph.run("How do I declare a request body in FastAPI?")
-    print(f"Answer:\n{result['answer']}")
-    print(f"\nSources:")
-    for s in result["sources"]:
-        print(f"  - {s['title']} ({s['url']})")
-    print(f"\nFallback triggered: {result['fallback_triggered']}")
-    print(f"Error: {result['error']}")
+    print(f"is_multi_hop : {result['is_multi_hop']}")
+    print(f"sub_queries  : {result['sub_queries']}")
+    print(f"candidates   : {len(result['candidates'])} chunks")
+    print(f"confidence   : {result['confidence']:.4f}")
+    print(f"answer       : {result['answer'][:200]}")
+    print(f"fallback     : {result['fallback_triggered']}")
+    print(f"error        : {result['error']}")
 
-    # test low relevance query
+    # test 2 — multi hop
     print("\n" + "="*60)
-    print("TEST 2 — Off-topic query (expect fallback)")
+    print("TEST 2 — Multi-hop query")
     print("="*60)
-    result2 = graph.run("How do I configure nginx reverse proxy?")
-    print(f"Answer:\n{result2['answer'][:300]}")
-    print(f"\nFallback triggered: {result2['fallback_triggered']}")
+    result2 = graph.run(
+        "How do I validate request body fields and exclude "
+        "null fields from the response in FastAPI?"
+    )
+    print(f"is_multi_hop : {result2['is_multi_hop']}")
+    print(f"sub_queries  : {result2['sub_queries']}")
+    print(f"sub_results  : {[len(r) for r in result2['sub_results']]} chunks per sub-query")
+    print(f"candidates   : {len(result2['candidates'])} unique chunks after dedup")
+    print(f"confidence   : {result2['confidence']:.4f}")
+    print(f"answer       : {result2['answer'][:200]}")
+    print(f"fallback     : {result2['fallback_triggered']}")
+    print(f"error        : {result2['error']}")
 
-    # test empty query
+    # test 3 — empty query, fail fast
     print("\n" + "="*60)
-    print("TEST 3 — Empty query (expect early error)")
+    print("TEST 3 — Empty query")
     print("="*60)
     result3 = graph.run("")
-    print(f"Answer: {result3['answer']}")
-    print(f"Error: {result3['error']}")
+    print(f"sub_queries  : {result3['sub_queries']}")
+    print(f"answer       : {result3['answer']}")
+    print(f"error        : {result3['error']}")
