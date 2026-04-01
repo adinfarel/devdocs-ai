@@ -1,0 +1,402 @@
+[
+  {
+    "id": "fastapi_001",
+    "question": "How do I declare an optional query parameter with a default value in FastAPI?",
+    "ground_truth": "Declare the parameter with a default value in the function signature. For example: def read_items(skip: int = 0, limit: int = 10). Parameters with default values are automatically treated as optional query parameters.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_002",
+    "question": "How do I declare a request body using Pydantic in FastAPI?",
+    "ground_truth": "Create a class that inherits from Pydantic BaseModel and declare it as a function parameter. FastAPI will read the request body as JSON and validate it against the model. Example: class Item(BaseModel): name: str; price: float. Then use it as: async def create_item(item: Item).",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_003",
+    "question": "How do path parameters work in FastAPI and how do I declare their type?",
+    "ground_truth": "Path parameters are declared in the path string with curly braces and as function parameters with type annotations. Example: @app.get('/items/{item_id}') with def read_item(item_id: int). FastAPI automatically validates and converts the type.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_004",
+    "question": "How do I use the Depends() function for dependency injection in FastAPI?",
+    "ground_truth": "Import Depends from fastapi and declare it as a default value for a function parameter. Example: async def read_items(commons: dict = Depends(common_parameters)). FastAPI will call the dependency function and inject its return value.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_005",
+    "question": "How do I return a custom HTTP status code in a FastAPI response?",
+    "ground_truth": "Use the status_code parameter in the path operation decorator. Example: @app.post('/items/', status_code=201). You can use integer values or the constants from fastapi import status, such as status.HTTP_201_CREATED.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_006",
+    "question": "How do I declare a response model in FastAPI to filter output fields?",
+    "ground_truth": "Use the response_model parameter in the path operation decorator. Example: @app.get('/items/{item_id}', response_model=Item). FastAPI will filter the response data to only include fields defined in the model, even if the function returns more fields.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_007",
+    "question": "How do I handle form data instead of JSON in FastAPI?",
+    "ground_truth": "Import Form from fastapi and declare form fields as parameters with Form() as default. Example: async def login(username: str = Form(), password: str = Form()). You must install python-multipart for form data support.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_008",
+    "question": "How do I add request validation using Field() in a Pydantic model in FastAPI?",
+    "ground_truth": "Import Field from pydantic and use it as the default value for model attributes. Example: class Item(BaseModel): name: str = Field(min_length=1, max_length=50); price: float = Field(gt=0). Field supports constraints like min_length, max_length, gt, ge, lt, le.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_009",
+    "question": "How do I raise and return HTTP exceptions in FastAPI?",
+    "ground_truth": "Import HTTPException from fastapi and raise it with a status_code and detail. Example: raise HTTPException(status_code=404, detail='Item not found'). FastAPI will convert this to a JSON response with the status code and detail message.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_010",
+    "question": "How do I declare a header parameter in a FastAPI path operation?",
+    "ground_truth": "Import Header from fastapi and use it as a default value. Example: async def read_items(user_agent: str = Header(None)). FastAPI automatically converts underscore to hyphen in header names, so user_agent maps to the User-Agent header.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "fastapi_011",
+    "question": "How do I create a reusable dependency with yield in FastAPI for database session management?",
+    "ground_truth": "Define a dependency function that uses yield instead of return. Code before yield runs before the request, code after yield runs after the response. Example: def get_db(): db = SessionLocal(); try: yield db; finally: db.close(). Use with Depends(get_db).",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_012",
+    "question": "How do I add custom middleware in FastAPI?",
+    "ground_truth": "Use app.add_middleware() or define a class that inherits from BaseHTTPMiddleware. With BaseHTTPMiddleware: class CustomMiddleware(BaseHTTPMiddleware): async def dispatch(self, request, call_next): response = await call_next(request); return response. Then add with app.add_middleware(CustomMiddleware).",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_013",
+    "question": "How do I implement background tasks in FastAPI?",
+    "ground_truth": "Import BackgroundTasks from fastapi and add it as a function parameter. Use background_tasks.add_task(func, *args) to schedule tasks. The task runs after the response is sent to the client. Example: async def send_email(background_tasks: BackgroundTasks): background_tasks.add_task(send_email_func, email).",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_014",
+    "question": "How do I use sub-applications and mount them in FastAPI?",
+    "ground_truth": "Create a separate FastAPI instance and mount it using app.mount(). Example: subapp = FastAPI(); app.mount('/subapp', subapp). The sub-application handles all requests under the /subapp path prefix.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_015",
+    "question": "How do I implement OAuth2 password flow authentication in FastAPI?",
+    "ground_truth": "Use OAuth2PasswordBearer and OAuth2PasswordRequestForm from fastapi.security. Define a /token endpoint that accepts form data and returns an access token. Use the OAuth2PasswordBearer as a dependency to extract and validate the token from the Authorization header.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_016",
+    "question": "How do I return a streaming response in FastAPI?",
+    "ground_truth": "Use StreamingResponse from fastapi.responses and pass a generator function. Example: def generate(): yield 'data chunk 1'; yield 'data chunk 2'. Return StreamingResponse(generate(), media_type='text/plain'). For SSE use media_type='text/event-stream'.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_017",
+    "question": "How do I add CORS middleware to a FastAPI application?",
+    "ground_truth": "Import CORSMiddleware from fastapi.middleware.cors and add it with app.add_middleware(). Specify allow_origins as a list of allowed origins. Example: app.add_middleware(CORSMiddleware, allow_origins=['http://localhost:3000'], allow_methods=['*'], allow_headers=['*']).",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_018",
+    "question": "How do I use lifespan events in FastAPI for startup and shutdown logic?",
+    "ground_truth": "Use the lifespan parameter with an async context manager. Define an async function with @asynccontextmanager decorator. Code before yield runs on startup, code after yield runs on shutdown. Pass it to FastAPI(lifespan=lifespan). This replaces the deprecated on_event decorator.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_019",
+    "question": "How do I test a FastAPI application using TestClient?",
+    "ground_truth": "Import TestClient from fastapi.testclient and create an instance with the app. Use it like a requests session: client = TestClient(app); response = client.get('/items/1'); assert response.status_code == 200. TestClient runs the app in a synchronous context suitable for testing.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_020",
+    "question": "How do I use APIRouter to organize routes in FastAPI across multiple files?",
+    "ground_truth": "Create an APIRouter instance in each module and define routes on it. Example: router = APIRouter(); @router.get('/items/'). Then include it in the main app: app.include_router(router, prefix='/api', tags=['items']). This keeps route definitions modular.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "fastapi_021",
+    "question": "What parameters does the FastAPI class constructor accept for app configuration?",
+    "ground_truth": "FastAPI() accepts title, description, version, openapi_url, docs_url, redoc_url, lifespan, dependencies, middleware, exception_handlers, and more. Key ones: title sets the API title in docs, openapi_url sets the OpenAPI schema endpoint, docs_url sets the Swagger UI path.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "reference"
+  },
+  {
+    "id": "fastapi_022",
+    "question": "What is the signature of the Query() function in FastAPI and what validation parameters does it support?",
+    "ground_truth": "Query() accepts default value, min_length, max_length, pattern (regex), gt, ge, lt, le for numeric validation, alias for renaming, title and description for OpenAPI docs, deprecated to mark as deprecated, and include_in_schema to hide from docs.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "reference"
+  },
+  {
+    "id": "fastapi_023",
+    "question": "What does the status module in FastAPI provide?",
+    "ground_truth": "fastapi.status provides HTTP status code constants as named attributes. Examples: status.HTTP_200_OK, status.HTTP_201_CREATED, status.HTTP_400_BAD_REQUEST, status.HTTP_404_NOT_FOUND, status.HTTP_422_UNPROCESSABLE_ENTITY. These are equivalent to their integer values.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "reference"
+  },
+  {
+    "id": "fastapi_024",
+    "question": "What is the Request object in FastAPI and what attributes does it expose?",
+    "ground_truth": "The Request object from fastapi exposes method, url, headers, query_params, path_params, cookies, body() (async), json() (async), form() (async), client (host and port), and state for storing custom data during request lifetime.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "reference"
+  },
+  {
+    "id": "fastapi_025",
+    "question": "How does the UploadFile class work in FastAPI for file uploads?",
+    "ground_truth": "UploadFile provides filename, content_type, and file attributes. Use await file.read() to read contents, await file.write() to write, await file.seek(0) to reset position. Declare with File() as default: async def upload(file: UploadFile = File()). Supports large files efficiently via SpooledTemporaryFile.",
+    "doc_source": "fastapi",
+    "difficulty": "single_hop",
+    "section": "reference"
+  },
+  {
+    "id": "pytorch_001",
+    "question": "How do I create a tensor from a Python list in PyTorch?",
+    "ground_truth": "Use torch.tensor() with a Python list. Example: torch.tensor([1.0, 2.0, 3.0]). You can specify dtype: torch.tensor([1, 2, 3], dtype=torch.float32). For zeros or ones use torch.zeros(shape) or torch.ones(shape).",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "tensor_basics"
+  },
+  {
+    "id": "pytorch_002",
+    "question": "How do I move a tensor to GPU in PyTorch?",
+    "ground_truth": "Use tensor.to('cuda') or tensor.cuda(). Check availability first: device = 'cuda' if torch.cuda.is_available() else 'cpu'; tensor = tensor.to(device). All operations on tensors must be on the same device.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "tensor_basics"
+  },
+  {
+    "id": "pytorch_003",
+    "question": "What is the difference between torch.Tensor and torch.tensor in PyTorch?",
+    "ground_truth": "torch.tensor() is a function that creates a new tensor by copying data, infers dtype from input data, and is the recommended way to create tensors from data. torch.Tensor is the class itself — calling it is equivalent to torch.FloatTensor and defaults to float32 regardless of input dtype.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "tensor_basics"
+  },
+  {
+    "id": "pytorch_004",
+    "question": "How do I reshape a tensor in PyTorch?",
+    "ground_truth": "Use tensor.view() for contiguous tensors or tensor.reshape() which works on non-contiguous tensors too. Example: tensor.view(2, 3) or tensor.reshape(2, -1) where -1 is inferred. Use tensor.unsqueeze(dim) to add a dimension and tensor.squeeze(dim) to remove dimensions of size 1.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "tensor_basics"
+  },
+  {
+    "id": "pytorch_005",
+    "question": "How do I convert a PyTorch tensor to a NumPy array?",
+    "ground_truth": "Use tensor.numpy() for CPU tensors. Note: the NumPy array shares memory with the tensor — modifying one modifies the other. For GPU tensors first move to CPU: tensor.cpu().numpy(). If gradient tracking is on, detach first: tensor.detach().numpy().",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "tensor_basics"
+  },
+  {
+    "id": "pytorch_006",
+    "question": "How does autograd work in PyTorch and how do I compute gradients?",
+    "ground_truth": "PyTorch tracks operations on tensors with requires_grad=True in a computation graph. Call loss.backward() to compute gradients via backpropagation. Access gradients via tensor.grad. Use torch.no_grad() context manager to disable tracking during inference.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "autograd"
+  },
+  {
+    "id": "pytorch_007",
+    "question": "What does tensor.detach() do in PyTorch?",
+    "ground_truth": "detach() returns a new tensor that shares data with the original but is detached from the computation graph — no gradients will flow through it. Used when you need a tensor's value without gradient tracking, such as for logging, visualization, or converting to NumPy.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "autograd"
+  },
+  {
+    "id": "pytorch_008",
+    "question": "What is the purpose of optimizer.zero_grad() in PyTorch training?",
+    "ground_truth": "zero_grad() resets gradients of all parameters to zero before each backward pass. PyTorch accumulates gradients by default — without zeroing, gradients from multiple backward passes add up, causing incorrect parameter updates. Call it at the start of each training iteration.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "autograd"
+  },
+  {
+    "id": "pytorch_009",
+    "question": "How do I use torch.no_grad() and when should I use it?",
+    "ground_truth": "Use torch.no_grad() as a context manager during inference or evaluation: with torch.no_grad(): output = model(input). It disables gradient computation, reducing memory usage and speeding up computation. Use it whenever you do not need gradients, such as validation loops and inference.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "autograd"
+  },
+  {
+    "id": "pytorch_010",
+    "question": "How do I compute gradients for non-scalar outputs in PyTorch?",
+    "ground_truth": "For non-scalar tensors, pass a gradient tensor of the same shape to backward(). Example: output.backward(torch.ones_like(output)). This is equivalent to summing the output and calling backward on the scalar. Alternatively use torch.autograd.grad() for explicit gradient computation.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "autograd"
+  },
+  {
+    "id": "pytorch_011",
+    "question": "What is a standard PyTorch training loop structure?",
+    "ground_truth": "Standard training loop: for each epoch, iterate over DataLoader batches, call optimizer.zero_grad(), forward pass through model, compute loss, call loss.backward(), call optimizer.step(). Optionally track metrics. Switch to model.eval() and use torch.no_grad() for validation.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "training_loop"
+  },
+  {
+    "id": "pytorch_012",
+    "question": "How do I save and load a PyTorch model?",
+    "ground_truth": "Save state dict: torch.save(model.state_dict(), 'model.pth'). Load: model.load_state_dict(torch.load('model.pth')). Always call model.eval() after loading for inference. To save the full model: torch.save(model, 'model.pth') but state dict is preferred for flexibility.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "training_loop"
+  },
+  {
+    "id": "pytorch_013",
+    "question": "How do I use a learning rate scheduler in PyTorch?",
+    "ground_truth": "Create a scheduler after the optimizer: scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1). Call scheduler.step() after each epoch or after optimizer.step() depending on the scheduler type. StepLR reduces LR by gamma every step_size epochs.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "training_loop"
+  },
+  {
+    "id": "pytorch_014",
+    "question": "How do I use DataLoader in PyTorch for batching and shuffling?",
+    "ground_truth": "Create a DataLoader wrapping a Dataset: DataLoader(dataset, batch_size=32, shuffle=True, num_workers=4). shuffle=True randomizes order each epoch. num_workers enables parallel data loading. Iterate with for batch in dataloader — returns tensors of shape (batch_size, ...).",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "training_loop"
+  },
+  {
+    "id": "pytorch_015",
+    "question": "How do I use gradient clipping in PyTorch to prevent exploding gradients?",
+    "ground_truth": "Use torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm) after loss.backward() and before optimizer.step(). max_norm is the maximum allowed gradient norm. Alternatively use clip_grad_value_(model.parameters(), clip_value) to clip by value instead of norm.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "training_loop"
+  },
+  {
+    "id": "pytorch_016",
+    "question": "How do I define a custom neural network in PyTorch using nn.Module?",
+    "ground_truth": "Subclass nn.Module, define layers in __init__ calling super().__init__(), and implement forward() method. Example: class Net(nn.Module): def __init__(self): super().__init__(); self.linear = nn.Linear(10, 1). def forward(self, x): return self.linear(x). PyTorch automatically tracks parameters defined as attributes.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "model_building"
+  },
+  {
+    "id": "pytorch_017",
+    "question": "How do I use nn.Sequential in PyTorch to build a model?",
+    "ground_truth": "nn.Sequential takes layers as arguments and applies them in order during forward pass. Example: model = nn.Sequential(nn.Linear(784, 128), nn.ReLU(), nn.Linear(128, 10)). Alternatively pass an OrderedDict with named layers for better readability.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "model_building"
+  },
+  {
+    "id": "pytorch_018",
+    "question": "How do model.train() and model.eval() affect model behavior in PyTorch?",
+    "ground_truth": "model.train() sets the model to training mode — enables dropout and batch normalization training behavior. model.eval() sets evaluation mode — disables dropout and uses running statistics for batch norm. Always call model.eval() before inference and model.train() before training.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "model_building"
+  },
+  {
+    "id": "pytorch_019",
+    "question": "How do I freeze specific layers in a PyTorch model during training?",
+    "ground_truth": "Set requires_grad=False for parameters you want to freeze: for param in model.layer.parameters(): param.requires_grad = False. These parameters will not be updated during optimizer.step(). Use this for transfer learning where you freeze pretrained layers and only train new layers.",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "model_building"
+  },
+  {
+    "id": "pytorch_020",
+    "question": "How do I get all trainable parameters of a PyTorch model?",
+    "ground_truth": "Use model.parameters() to get all parameters or model.named_parameters() to get name-value pairs. To get only trainable ones: [p for p in model.parameters() if p.requires_grad]. Pass model.parameters() to the optimizer: optimizer = torch.optim.Adam(model.parameters(), lr=1e-3).",
+    "doc_source": "pytorch",
+    "difficulty": "single_hop",
+    "section": "model_building"
+  },
+  {
+    "id": "multi_001",
+    "question": "How do I build a FastAPI endpoint that accepts a request body and returns a filtered response model?",
+    "ground_truth": "Declare a Pydantic BaseModel for input (request body) and another for output (response model). Use the input model as a function parameter and response_model in the decorator. FastAPI validates input against the input model and filters output to match response_model fields only.",
+    "doc_source": "fastapi",
+    "difficulty": "multi_hop",
+    "section": "tutorial"
+  },
+  {
+    "id": "multi_002",
+    "question": "How do I create a FastAPI dependency that validates an API key from a header and use it across multiple routes?",
+    "ground_truth": "Define a dependency function that uses Header() to extract the API key and raises HTTPException(403) if invalid. Use Depends() in individual routes or pass it to APIRouter(dependencies=[Depends(verify_api_key)]) to apply to all routes in the router.",
+    "doc_source": "fastapi",
+    "difficulty": "multi_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "multi_003",
+    "question": "How do I implement a complete PyTorch training loop with validation, learning rate scheduling, and model checkpointing?",
+    "ground_truth": "Training loop: zero_grad, forward, loss, backward, clip gradients, optimizer.step, scheduler.step. Validation loop: model.eval(), torch.no_grad(), compute val loss. Save checkpoint with torch.save including model state_dict, optimizer state_dict, and epoch. Load best checkpoint after training.",
+    "doc_source": "pytorch",
+    "difficulty": "multi_hop",
+    "section": "training_loop"
+  },
+  {
+    "id": "multi_004",
+    "question": "How do I build a FastAPI app with OAuth2 authentication and protected routes using dependency injection?",
+    "ground_truth": "Define a /token endpoint using OAuth2PasswordRequestForm that returns an access token. Create a get_current_user dependency using OAuth2PasswordBearer that extracts and validates the token. Apply the dependency to protected routes via Depends(get_current_user). Use APIRouter with dependencies for group protection.",
+    "doc_source": "fastapi",
+    "difficulty": "multi_hop",
+    "section": "advanced"
+  },
+  {
+    "id": "multi_005",
+    "question": "How do I define a custom PyTorch nn.Module with multiple sub-modules and train it with a custom loss function?",
+    "ground_truth": "Define sub-modules as attributes in __init__ — PyTorch tracks them as parameters automatically. Implement forward() composing sub-modules. For custom loss, subclass nn.Module and implement forward(pred, target) returning a scalar tensor. Pass model.parameters() to optimizer and call custom_loss(output, target).backward().",
+    "doc_source": "pytorch",
+    "difficulty": "multi_hop",
+    "section": "model_building"
+  }
+]
