@@ -168,6 +168,32 @@ class LLMGenerator:
 
         return answer
     
+    def generate_raw(
+        self,
+        prompt: str,
+    ) -> str:
+        """
+        Generates a solution from the raw prompt without the RAG system prompt.
+
+        Used for internal tasks such as query decomposition that do not require RAG foundation constraints.
+
+        Arguments:
+        prompt: The full prompt string, directly to the user role.
+
+        Returns:
+        The raw solution string from the LLM.
+        """
+        response   = self.client.chat.completions.create(
+            model=self.MODEL,
+            messages=[
+                {"role":"user", "content": prompt}
+            ],
+            max_tokens=256,
+            temperature=0.0,
+        )
+        
+        return response.choices[0].message.content
+    
     def stream(
         self,
         query: str,
