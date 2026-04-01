@@ -67,7 +67,7 @@ class BM25Store:
         
         return text.lower().split()
     
-    def build(self, chunks: list[str]) -> None:
+    def build(self, chunks: list[dict]) -> None:
         """
         Build a BM25 index from a list of chunk dicts.
 
@@ -75,8 +75,8 @@ class BM25Store:
         BM25Okapi will calculate the IDF for all terms in the corpus and store it internally.
 
         Args:
-        chunks: List of chunk dicts — same format as
-        those loaded from chunked JSON.
+            chunks: List of chunk dicts — same format as
+                    those loaded from chunked JSON.
         """
         if not chunks:
             self.logger.error(f"Cannot build BM25 index from empty chunks list")
